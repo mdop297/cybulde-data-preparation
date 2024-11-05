@@ -2,7 +2,6 @@ FROM python:3.11-slim
 
 ARG USER_ID
 ARG USER_NAME
-
 ENV HOME=/home/${USER_NAME} \
     VIRTUAL_ENV=/home/${USER_NAME}/venv
 ENV \

@@ -1,3 +1,8 @@
+# Before running this project
+- install git docker, docker compose, gcloud
+- add ssh key from local machine to github
+- run `gcloud init` or [gcloud auth application-default login](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login)
+
 # create pyproject.toml and add dependencies
 
 - dependencies install for project under [tool.poetry.dependencies]  

@@ -14,13 +14,12 @@ endif
 
 SERVICE_NAME = app
 CONTAINER_NAME = cybulde-data-processing-container
-
 DIRS_TO_VALIDATE = src
 DOCKER_COMPOSE_RUN = $(DOCKER_COMPOSE) run --rm $(SERVICE_NAME)
 DOCKER_COMPOSE_EXEC = $(DOCKER_COMPOSE) exec $(SERVICE_NAME)
+HYDRA_FULL_ERROR = 1
 
 export
-
 
 # Returns true if the stem is a non-empty environment variable, or else raises an error.
 guard-%:
