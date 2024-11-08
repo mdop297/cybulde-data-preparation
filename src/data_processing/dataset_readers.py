@@ -5,17 +5,29 @@ from typing import Optional
 import dask.dataframe as dd
 from dask_ml.model_selection import train_test_split
 
+from src.utils.data_utils import repartition_dataframe
 from src.utils.utils import get_logger
-
+from src.utils.data_utils import get_repo_address_with_access_token
+from dvc.api import get_url
 
 class DatasetReader(ABC):
     required_columns = {"text", "label", "split", "dataset_name"}
     split_names = {"train", "dev", "test"}
 
-    def __init__(self, dataset_dir: str, dataset_name: str) -> None:
+    def __init__(self, 
+                 dataset_dir: str, 
+                 dataset_name: str, 
+                 gcp_project_id:str, 
+                 gcp_github_access_token_secret_id:str, 
+                 dvc_remote_repo:str,
+                 github_user_name:str, 
+                 version: str) -> None:
         self.logger = get_logger(self.__class__.__name__)
         self.dataset_dir = dataset_dir
         self.dataset_name = dataset_name
+        self.dvc_remote_repo = get_repo_address_with_access_token(gcp_project_id, gcp_github_access_token_secret_id, dvc_remote_repo, github_user_name)
+        self.verion = version
+
 
     def read_data(self) -> dd.core.DataFrame:
         train_df, dev_df, test_df = self._read_data()
@@ -65,20 +77,43 @@ class DatasetReader(ABC):
         first_df = dd.concat(first_dfs) #type: ignore
         second_df = dd.concat(second_dfs) #type: ignore
         return first_df, second_df
+    
+    def get_remote_data_url(self, dataset_path:str) -> str:
+        return get_url(path=dataset_path, repo=self.dvc_remote_repo, rev=self.verion)
 
 
 class GHCDatasetReader(DatasetReader):
-    def __init__(self, dataset_dir: str, dataset_name: str, dev_split_ratio: float) -> None:
-        super().__init__(dataset_dir, dataset_name)
+    def __init__(
+        self,
+        dataset_dir: str,
+        dataset_name: str,
+        dev_split_ratio: float,
+        gcp_project_id: str,
+        gcp_github_access_token_secret_id: str,
+        dvc_remote_repo: str,
+        github_user_name: str,
+        version: str,
+    ) -> None:
+        super().__init__(
+            dataset_dir,
+            dataset_name,
+            gcp_project_id,
+            gcp_github_access_token_secret_id,
+            dvc_remote_repo,
+            github_user_name,
+            version,
+        )
         self.dev_split_ratio = dev_split_ratio
 
     def _read_data(self) -> tuple[dd.core.DataFrame, dd.core.DataFrame, dd.core.DataFrame]:
-        self.logger.info("Reading GHC dataset ...")
+        self.logger.info("Reading GHC dataset...")
         train_tsv_path = os.path.join(self.dataset_dir, "ghc_train.tsv")
-        train_df = dd.read_csv(train_tsv_path, sep="\t", header=0)
+        train_tsv_url = self.get_remote_data_url(train_tsv_path)
+        train_df = dd.read_csv(train_tsv_url, sep="\t", header=0)
 
         test_tsv_path = os.path.join(self.dataset_dir, "ghc_test.tsv")
-        test_df = dd.read_csv(test_tsv_path, sep="\t", header=0)
+        test_tsv_url = self.get_remote_data_url(test_tsv_path)
+        test_df = dd.read_csv(test_tsv_url, sep="\t", header=0)
 
         train_df["label"] = (train_df["hd"] + train_df["cv"] + train_df["vo"] > 0).astype(int)
         test_df["label"] = (test_df["hd"] + test_df["cv"] + test_df["vo"] > 0).astype(int)
@@ -88,27 +123,48 @@ class GHCDatasetReader(DatasetReader):
         return train_df, dev_df, test_df
 
 
+
 class JigsawToxicCommentsDatasetReader(DatasetReader):
-    def __init__(self, dataset_dir: str, dataset_name: str, dev_split_ratio: float) -> None:
-        super().__init__(dataset_dir, dataset_name)
+    def __init__(
+        self, 
+        dataset_dir: str, 
+        dataset_name: str, 
+        dev_split_ratio: float,
+        gcp_project_id: str,
+        gcp_github_access_token_secret_id: str,
+        dvc_remote_repo: str,
+        github_user_name: str,
+        version: str,
+        ) -> None:
+        super().__init__(dataset_dir, 
+                         dataset_name, 
+                         gcp_project_id,
+                         gcp_github_access_token_secret_id,
+                         dvc_remote_repo,
+                         github_user_name,
+                         version)
         self.dev_split_ratio = dev_split_ratio
         self.columns_for_label = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 
     def _read_data(self) -> tuple[dd.core.DataFrame, dd.core.DataFrame, dd.core.DataFrame]:
         self.logger.info(f"Reading {self.__class__.__name__}")
         test_csv_path = os.path.join(self.dataset_dir, "test.csv")
-        test_df = dd.read_csv(test_csv_path)
+        test_csv_url = self.get_remote_data_url(test_csv_path)
+        test_df = dd.read_csv(test_csv_url)
 
         test_labels_csv_path = os.path.join(self.dataset_dir, "test_labels.csv")
-        test_labels_df = dd.read_csv(test_labels_csv_path)
+        test_labels_csv_url = self.get_remote_data_url(test_labels_csv_path)
+        test_labels_df = dd.read_csv(test_labels_csv_url)
 
         test_df = test_df.merge(test_labels_df, on=["id"])
         test_df = test_df[test_df["toxic"] != -1]
         test_df = self.get_text_and_label_columns(test_df)
 
         train_csv_path = os.path.join(self.dataset_dir, "train.csv")
-        train_df = dd.read_csv(train_csv_path)
+        train_csv_url = self.get_remote_data_url(train_csv_path)
+        train_df = dd.read_csv(train_csv_url)
         train_df = self.get_text_and_label_columns(train_df)
+
         train_df, dev_df = self.split_dataset(train_df, self.dev_split_ratio, stratify_column="label")
 
         return train_df, dev_df, test_df
@@ -120,30 +176,58 @@ class JigsawToxicCommentsDatasetReader(DatasetReader):
 
 
 class TwitterDatasetReader(DatasetReader):
-    def __init__(self, dataset_dir: str, dataset_name: str, dev_split_ratio: float, test_split_ratio: float) -> None:
-        super().__init__(dataset_dir, dataset_name)
+    def __init__(
+        self, 
+        dataset_dir: str, 
+        dataset_name: str, 
+        dev_split_ratio: float, 
+        test_split_ratio: float,
+        gcp_project_id: str,
+        gcp_github_access_token_secret_id: str,
+        dvc_remote_repo: str,
+        github_user_name: str,
+        version: str,
+        ) -> None:
+        super().__init__(dataset_dir, 
+                         dataset_name,
+                         gcp_project_id,
+                         gcp_github_access_token_secret_id,
+                         dvc_remote_repo,
+                         github_user_name,
+                         version)
         self.dev_split_ratio = dev_split_ratio
         self.test_split_ratio = test_split_ratio
         self.columns_for_label = ["cyberbullying_type"]
 
     def _read_data(self) -> tuple[dd.core.DataFrame, dd.core.DataFrame, dd.core.DataFrame]:
         self.logger.info(f"Reading {self.__class__.__name__}")
-        train_csv_path = os.path.join(self.dataset_dir, "cyberbullying_tweets.csv")
-        train_df = dd.read_csv(train_csv_path)
+        data_csv_path = os.path.join(self.dataset_dir, "cyberbullying_tweets.csv")
+        data_csv_url = self.get_remote_data_url(data_csv_path)
+        ddf = dd.read_csv(data_csv_url)
+        ddf = ddf.rename(columns={"tweet_text": "text", "cyberbullying_type": "label"})
+        ddf["label"] = (ddf["label"] != "not_cyberbullying").astype(int)
+        
+        train_ddf, test_ddf = self.split_dataset(ddf, test_size=self.test_split_ratio, stratify_column="label")
+        train_ddf, dev_ddf = self.split_dataset(train_ddf, test_size=self.dev_split_ratio, stratify_column="label")
 
-        train_df = train_df.rename(columns={"tweet_text": "text", "cyberbullying_type": "label"})
-        train_df["label"] = (train_df["label"] != "not_cyberbullying").astype(int)
-
-        train_df, test_df = self.split_dataset(train_df, test_size=self.test_split_ratio, stratify_column="label")
-        train_df, dev_df = self.split_dataset(train_df, test_size=self.dev_split_ratio, stratify_column="label")
-        return train_df, dev_df, test_df
+        return train_ddf, dev_ddf, test_ddf
+    
 
 
 class DatasetReaderManager:
-    def __init__(self, dataset_readers: dict[str, DatasetReader]) -> None:
+    def __init__(self, dataset_readers: dict[str, DatasetReader], repartition: bool=True, available_memory: Optional[float] = None) -> None:
         self.dataset_readers = dataset_readers
+        self.repartition = repartition
+        self.available_memory = available_memory
 
-    def read_data(self) -> dd.core.DataFrame:
-        dfs = [dataset_reader.read_data() for dataset_reader in self.dataset_readers.values()] 
-        df: dd.core.DataFrame = dd.concat(dfs) # type: ignore
-        return df
+    def read_data(self, nrof_workers: int) -> dd.core.DataFrame:
+        dfs = [dataset_reader.read_data() for dataset_reader in self.dataset_readers.values()]
+        
+        if not dfs:
+            raise ValueError("No DataFrames were returned by the dataset readers.")
+        df: dd.core.DataFrame = dd.concat(dfs)
+
+        if self.repartition:
+            df = repartition_dataframe(df, nrof_workers=nrof_workers, available_memory=self.available_memory)
+
+        return df # type: ignore

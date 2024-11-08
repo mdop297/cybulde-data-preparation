@@ -5,6 +5,8 @@ services:
     image: cybulde-data-processing
     platform: linux/amd64
     container_name: cybulde-data-processing-container
+    environment: 
+      - GOOGLE_APPLICATION_CREDENTIALS=./creds/cybully-project-da20e495ea8d.json
     build:
       context: .
       dockerfile: ./docker/Dockerfile

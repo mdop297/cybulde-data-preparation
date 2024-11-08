@@ -4,7 +4,9 @@ from hydra.core.config_store import ConfigStore
 
 @dataclass
 class GCPConfig:
-    project_id: str = "mdop-cybulde"
+    project_id: str = "cybully-project"
+    zone: str = "asia-southeast1-a"
+    network: str = "default"
 
 
 def setup_config() -> None:

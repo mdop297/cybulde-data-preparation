@@ -17,7 +17,10 @@ CONTAINER_NAME = cybulde-data-processing-container
 DIRS_TO_VALIDATE = src
 DOCKER_COMPOSE_RUN = $(DOCKER_COMPOSE) run --rm $(SERVICE_NAME)
 DOCKER_COMPOSE_EXEC = $(DOCKER_COMPOSE) exec $(SERVICE_NAME)
-HYDRA_FULL_ERROR = 1
+
+LOCAL_DOCKER_IMAGE_NAME = cybulde-data-processing
+GCP_DOCKER_IMAGE_NAME = asia-southeast1-docker.pkg.dev/cybully-project/cybully-artifacts/cybulde-data-processing
+GCP_DOCKER_IMAGE_TAG := $(strip $(shell uuidgen))
 
 export
 
@@ -25,8 +28,26 @@ export
 guard-%:
 	@#$(or ${$*}, $(error $* is not set))
 
-## Call process data
-process-data: up
+## Generate final config. CONFIG_NAME=<config_name> has to be provided. For overrides use: OVERRIDES=<overrides>
+generate-final-config: up guard-CONFIG_NAME
+	$(DOCKER_COMPOSE_EXEC) python ./src/generate_final_config.py --config-name $${CONFIG_NAME} --overrides docker_image_name=$(GCP_DOCKER_IMAGE_NAME) docker_image_tag=$(GCP_DOCKER_IMAGE_TAG) $${OVERRIDES}
+
+## Generate final data processing config. For overrides use: OVERRIDES=<overrides>
+generate-final-data-processing-config: up
+	$(DOCKER_COMPOSE_EXEC) python ./src/generate_final_config.py --config-name data_processing_config --overrides docker_image_name=$(GCP_DOCKER_IMAGE_NAME) docker_image_tag=$(GCP_DOCKER_IMAGE_TAG) $${OVERRIDES}
+
+## Process raw data then push to GCP artifact registry
+process-data-and-push: generate-final-data-processing-config push
+	$(DOCKER_COMPOSE_EXEC) python ./src/process_data.py
+
+## Push docker image to GCP artifact registry
+push: build
+# gcloud auth configure-docker --quiet asia-southeast1-docker.pkg.dev
+	docker tag $(LOCAL_DOCKER_IMAGE_NAME):latest "$(GCP_DOCKER_IMAGE_NAME):$(GCP_DOCKER_IMAGE_TAG)"
+	docker push "$(GCP_DOCKER_IMAGE_NAME):$(GCP_DOCKER_IMAGE_TAG)"
+
+## Local process data, 
+process-data: generate-final-data-processing-config
 	$(DOCKER_COMPOSE_EXEC) python ./src/process_data.py
 
 ## Starts jupyter lab
