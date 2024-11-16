@@ -12,6 +12,8 @@ from src.utils.io_utils import write_yaml_file
 from src.utils.utils import get_logger
 import dask.dataframe as dd
 
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request
 
 
 def process_raw_data(
@@ -28,7 +30,10 @@ def process_data(config: DataProcessingConfig) -> None:
     
     processed_data_save_dir = config.processed_data_save_dir
     
+    logger.info("instantiating cluster...")
     cluster = custom_instantiate(config.dask_cluster)
+    logger.info("instantiated cluster!")
+
     client = Client(cluster)
     try: 
         # print(20 * "===")
@@ -83,4 +88,21 @@ def process_data(config: DataProcessingConfig) -> None:
 
 
 if __name__ == "__main__":
+    service_account_file = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    
+    if not service_account_file:
+        raise ValueError("The GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.")
+    
+    credentials = service_account.Credentials.from_service_account_file(
+        service_account_file,
+        scopes=['https://www.googleapis.com/auth/cloud-platform']
+    )
+    
+    # Refresh the credentials to ensure they are valid
+    credentials.refresh(Request())
+    
+    print(f"Using service account file: {service_account_file}")
+    print(f"{credentials.valid}")
+
+    # Call your data processing function
     process_data()

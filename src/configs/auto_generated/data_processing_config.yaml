@@ -43,7 +43,7 @@ dataset_reader_manager:
       dev_split_ratio: 0.3
       test_split_ratio: 0.2
   repartition: true
-  available_memory: 3750000000.0
+  available_memory: 4000000000.0
 dataset_cleaner_manager:
   _target_: src.data_processing.dataset_cleaners.DatasetCleanerManager
   dataset_cleaners:
@@ -75,14 +75,14 @@ dataset_cleaner_manager:
         count_threshold: 1
 dask_cluster:
   _target_: dask_cloudprovider.gcp.GCPCluster
-  n_workers: 3
+  n_workers: 2
   projectid: cybully-project
   zone: asia-southeast1-a
   network: default
   network_projectid: cybully-project
-  machine_type: n1-standard-1
+  machine_type: e2-medium
   source_image: projects/ubuntu-os-cloud/global/images/ubuntu-minimal-2004-focal-v20220203
-  docker_image: asia-southeast1-docker.pkg.dev/cybully-project/cybully-artifacts/cybulde-data-processing:a4d2ba83-51ba-4ad4-a57a-426a8f992db7
+  docker_image: asia-southeast1-docker.pkg.dev/cybully-project/cybully-artifacts/cybulde-data-processing:b6e4d819-99a2-4ee4-a675-78fe651e5b96
   docker_args: '--log-driver=gcplogs
 
     '
@@ -102,9 +102,11 @@ dask_cluster:
   asynchronous: null
   security: true
   preemptible: false
-  debug: false
+  debug: true
   instance_labels: null
+  service_account: ''
+  service_account_credentials: null
 processed_data_save_dir: gs://cybulde_bucket/data/processed/default_run
 run_tag: default_run
 docker_image_name: asia-southeast1-docker.pkg.dev/cybully-project/cybully-artifacts/cybulde-data-processing
-docker_image_tag: a4d2ba83-51ba-4ad4-a57a-426a8f992db7
+docker_image_tag: b6e4d819-99a2-4ee4-a675-78fe651e5b96

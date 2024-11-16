@@ -105,13 +105,13 @@ def custom_instantiate(config: Any) -> Any:
 
     config_as_dict.pop("_target_", None)
     config_as_dict.pop("_partial_", None)
-
     splitted_target = _target_.split(".")
     module_name, class_name = ".".join(splitted_target[:-1]), splitted_target[-1]
-
     module = importlib.import_module(module_name)
     _class = getattr(module, class_name)
+
     if _partial_:
         return partial(_class, **config_as_dict)
+
     return _class(**config_as_dict)
  

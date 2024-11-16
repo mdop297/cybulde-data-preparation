@@ -42,7 +42,7 @@ process-data-and-push: generate-final-data-processing-config push
 
 ## Push docker image to GCP artifact registry
 push: build
-# gcloud auth configure-docker --quiet asia-southeast1-docker.pkg.dev
+	gcloud auth configure-docker --quiet asia-southeast1-docker.pkg.dev
 	docker tag $(LOCAL_DOCKER_IMAGE_NAME):latest "$(GCP_DOCKER_IMAGE_NAME):$(GCP_DOCKER_IMAGE_TAG)"
 	docker push "$(GCP_DOCKER_IMAGE_NAME):$(GCP_DOCKER_IMAGE_TAG)"
 

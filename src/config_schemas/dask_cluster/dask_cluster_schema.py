@@ -40,7 +40,7 @@ class GCPDaskClusterConfig(DaskClusterConfig):
     zone: str = SI("${infrastructure.zone}")
     network: str = SI("${infrastructure.network}")
     network_projectid: Optional[str] = SI("${infrastructure.project_id}")
-    machine_type: str = "n1-standard-1"
+    machine_type: str = "e2-medium"
     source_image: str = "projects/ubuntu-os-cloud/global/images/ubuntu-minimal-2004-focal-v20220203"
     docker_image: Optional[str] = "daskdev/dask:latest"
     docker_args: str = ""
@@ -52,7 +52,6 @@ class GCPDaskClusterConfig(DaskClusterConfig):
     filesystem_size: int = 50  # In GBs
     disk_type: str = "pd-standard"
     on_host_maintenance: str = "TERMINATE"
-
     n_workers: int = 0
     worker_class: str = "dask.distributed.Nanny"
     worker_options: dict[str, Any] = field(default_factory=lambda: {})
@@ -62,8 +61,10 @@ class GCPDaskClusterConfig(DaskClusterConfig):
     asynchronous: Optional[bool] = None
     security: bool = True
     preemptible: Optional[bool] = False
-    debug: Optional[bool] = False
+    debug: Optional[bool] = True
     instance_labels: Optional[dict[str, str]] = None
+    service_account: str = ""
+    service_account_credentials: Optional[dict[str, Any]] = None
 
 
 def setup_config() -> None:
